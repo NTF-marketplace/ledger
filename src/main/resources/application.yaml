@@ -1,0 +1,31 @@
+spring:
+  cloud:
+    config:
+      enabled: false
+  application:
+    name: ledger
+  datasource:
+    url: jdbc:postgresql://localhost:5437/ledger
+    username: ledger
+    password: ledger
+  flyway:
+    locations: classpath:db/migration
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5437/ledger
+    username: ledger
+    password: ledger
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: ledger-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+server:
+  port: 8086
