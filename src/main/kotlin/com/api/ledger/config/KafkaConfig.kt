@@ -1,4 +1,4 @@
-package com.api.ledger.ledger.config
+package com.api.ledger.config
 
 import org.springframework.kafka.support.serializer.JsonDeserializer
 import com.fasterxml.jackson.databind.JsonSerializer

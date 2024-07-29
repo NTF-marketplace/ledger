@@ -1,6 +1,6 @@
-package com.api.ledger.ledger.domain.repository
+package com.api.ledger.domain.repository
 
-import com.api.ledger.ledger.domain.Ledger
+import com.api.ledger.domain.Ledger
 import org.springframework.data.repository.reactive.ReactiveCrudRepository
 
 interface LedgerRepository : ReactiveCrudRepository<Ledger,Long> {

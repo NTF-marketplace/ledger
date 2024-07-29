@@ -1,4 +1,4 @@
-package com.api.ledger.ledger.config
+package com.api.ledger.config
 
 import io.r2dbc.postgresql.PostgresqlConnectionConfiguration
 import io.r2dbc.postgresql.PostgresqlConnectionFactory

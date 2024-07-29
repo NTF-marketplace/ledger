@@ -1,6 +1,6 @@
-package com.api.ledger.ledger.service
+package com.api.ledger.service
 
-import com.api.ledger.ledger.domain.repository.LedgerRepository
+import com.api.ledger.domain.repository.LedgerRepository
 import org.springframework.stereotype.Service
 
 @Service

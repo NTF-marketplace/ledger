@@ -1,4 +1,4 @@
-package com.api.ledger.ledger
+package com.api.ledger
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan

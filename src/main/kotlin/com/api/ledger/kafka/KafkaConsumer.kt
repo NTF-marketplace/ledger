@@ -1,7 +1,7 @@
-package com.api.ledger.ledger.kafka
+package com.api.ledger.kafka
 
-import com.api.ledger.ledger.enums.ChainType
-import com.api.ledger.ledger.kafka.dto.LedgerRequest
+import com.api.ledger.enums.ChainType
+import com.api.ledger.kafka.dto.LedgerRequest
 import org.slf4j.LoggerFactory
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.support.KafkaHeaders

@@ -1,4 +1,4 @@
-package com.api.ledger.ledger.enums
+package com.api.ledger.enums
 
 enum class TokenType { MATIC, ETH, BTC }
 
