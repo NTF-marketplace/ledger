@@ -11,3 +11,5 @@ enum class ChainType {
     ETHEREUM_SEPOLIA,
     POLYGON_AMOY,
 }
+
+enum class OrderStatusType { PENDING,FAILED,CANCELD,COMPLETED }
