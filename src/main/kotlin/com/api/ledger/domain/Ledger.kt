@@ -1,5 +1,6 @@
 package com.api.ledger.domain
 
+import com.api.ledger.enums.ChainType
 import com.api.ledger.enums.TokenType
 import org.springframework.data.annotation.Id
 import org.springframework.data.relational.core.mapping.Table
@@ -13,5 +14,5 @@ data class Ledger(
     val orderAddress: String,
     val createdAt: Long? = System.currentTimeMillis(),
     val ledgerPrice: BigDecimal,
-    val tokenType: TokenType,
+    val chainType: ChainType,
 )
