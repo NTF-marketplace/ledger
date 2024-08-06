@@ -1,8 +1,14 @@
 package com.api.ledger.service
 
 import com.api.ledger.domain.Ledger
+import com.api.ledger.domain.LedgerFailLog
+import com.api.ledger.domain.repository.LedgerFailLogRepository
 import com.api.ledger.domain.repository.LedgerRepository
+import com.api.ledger.enums.OrderStatusType
+import com.api.ledger.kafka.KafkaProducer
 import com.api.ledger.kafka.dto.LedgerRequest
+import com.api.ledger.kafka.dto.LedgerStatusRequest
+import com.api.ledger.service.dto.TransferRequest
 import com.api.ledger.service.external.WalletApiService
 import org.springframework.http.HttpStatus
 import org.springframework.kafka.support.Acknowledgment
@@ -15,15 +21,27 @@ import kotlin.time.Duration
 class LedgerService(
     private val ledgerRepository: LedgerRepository,
     private val walletApiService: WalletApiService,
+    private val ledgerFailLogRepository: LedgerFailLogRepository,
+    private val kafkaProducer: KafkaProducer,
 ) {
 
     // 돋시성 이슈는 어떻게 해결핲것인지 좀 생각해보자
+    // transfer -> ledger -> 상태변경
+    // 그럼 candel 이 있을 이유가 굳이 있긴한다?
     // TODO("각각 다른 커스텀에러만들기")
     fun ledger(request: LedgerRequest): Mono<Void> {
-        return walletApiService.transfer(request)
+        return walletApiService.transfer(
+            TransferRequest(
+                fromAddress = request.orderAddress,
+                toAddress = request.address,
+                chainType = request.chainType,
+                amount = request.price,
+                nftId = request.nftId
+            )
+        )
             .flatMap { responseEntity ->
                 when (responseEntity.statusCode) {
-                    HttpStatus.OK -> handleSuccess(request)
+                    HttpStatus.OK -> saveLedgerLog(request)
                     HttpStatus.BAD_REQUEST -> {
                         sendFailedNotification(request, "Bad Request: ${responseEntity.body}")
                             .then(Mono.error(BadRequestException("Bad Request: ${responseEntity.body}")))
@@ -56,22 +74,37 @@ class LedgerService(
         return Mono.empty()
     }
 
-    private fun handleSuccess(request: LedgerRequest): Mono<Void> {
-        return saveLedgerLog(request)
-            .then()
-    }
 
-    //TODO("체결로그 저장 후 상태값 바꾸기")
     private fun saveLedgerLog(request: LedgerRequest): Mono<Void> {
-
-        return Mono.empty()
+        return ledgerRepository.save(
+            Ledger(
+                nftId = request.nftId,
+                saleAddress = request.address,
+                orderAddress = request.orderAddress,
+                createdAt = System.currentTimeMillis(),
+                ledgerPrice = request.price,
+                chainType = request.chainType
+            )
+        ).flatMap {
+            sendLedgerStatus(request.orderId, OrderStatusType.COMPLETED)
+        }
     }
 
-
-    // TODO("실패로그 저장")
     private fun sendFailedNotification(request: LedgerRequest, message: String?): Mono<Void> {
-        // 실패로그 저장
-        return Mono.empty()
+        return ledgerFailLogRepository.save(
+            LedgerFailLog(
+                orderId = request.orderId,
+                message = message
+            )
+        ).flatMap {
+            sendLedgerStatus(request.orderId, OrderStatusType.FAILED)
+        }
+    }
+
+    private fun sendLedgerStatus(orderId: Long, status: OrderStatusType): Mono<Void> {
+        return kafkaProducer.sendLedgerStatus(
+            LedgerStatusRequest(orderId, status)
+        )
     }
 
 }

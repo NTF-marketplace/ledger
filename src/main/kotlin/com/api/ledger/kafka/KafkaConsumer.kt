@@ -3,6 +3,7 @@ package com.api.ledger.kafka
 import com.api.ledger.enums.ChainType
 import com.api.ledger.kafka.dto.LedgerRequest
 import com.api.ledger.service.LedgerService
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.support.Acknowledgment
@@ -14,7 +15,10 @@ import reactor.core.publisher.Mono
 import java.math.BigDecimal
 
 @Service
-class KafkaConsumer(private val ledgerService: LedgerService) {
+class KafkaConsumer(
+    private val ledgerService: LedgerService,
+    private val objectMapper: ObjectMapper
+    ) {
 
     private val logger = LoggerFactory.getLogger(KafkaConsumer::class.java)
 
@@ -36,24 +40,17 @@ class KafkaConsumer(private val ledgerService: LedgerService) {
 
         processLedgerRequest(ledgerRequest)
             .doOnSuccess {
-                acknowledgment.acknowledge()
+                acknowledgment.acknowledge() // 메시지 수동 확인
             }
             .onErrorResume {
-                ledgerService.orderFailureAndMoveToNext(acknowledgment)
+                ledgerService.orderFailureAndMoveToNext(acknowledgment) // 에러 발생 시 처리
             }
             .subscribe()
     }
 
     private fun convertToLedgerRequest(payload: LinkedHashMap<String, Any>): LedgerRequest {
-        val nftId = (payload["nftId"] as Number).toLong()
-        val address = payload["address"] as String
-        val price = BigDecimal.valueOf(payload["price"] as Double)
-        val chainType = ChainType.valueOf(payload["chainType"] as String)
-        val orderAddress = payload["orderAddress"] as String
-
-        return LedgerRequest(nftId, address, price, chainType, orderAddress)
+        return objectMapper.convertValue(payload, LedgerRequest::class.java)
     }
-
     fun processLedgerRequest(ledgerRequest: LedgerRequest): Mono<Void> {
         return ledgerService.ledger(ledgerRequest)
     }

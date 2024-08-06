@@ -17,6 +17,7 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory
 import org.springframework.kafka.config.TopicBuilder
 import org.springframework.kafka.core.*
 import org.springframework.kafka.listener.CommonErrorHandler
+import org.springframework.kafka.listener.ContainerProperties
 import org.springframework.kafka.listener.MessageListenerContainer
 
 @Configuration
@@ -40,11 +41,19 @@ class KafkaConfig {
         .build()
 
     @Bean
+    fun ledgerStatusTopic(): NewTopic = TopicBuilder.name("ledgerStatus-topic")
+        .partitions(4)
+        .replicas(1)
+        .build()
+
+
+    @Bean
     fun producerFactory(): ProducerFactory<String, Any> {
         val configProps = mapOf(
             ProducerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
             ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG to StringSerializer::class.java,
-            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG to JsonSerializer::class.java
+            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG to JsonSerializer::class.java,
+            ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG to true
         )
         return DefaultKafkaProducerFactory(configProps)
     }
@@ -72,6 +81,7 @@ class KafkaConfig {
         val factory = ConcurrentKafkaListenerContainerFactory<String, Any>()
         factory.consumerFactory = consumerFactory()
         factory.setConcurrency(4)
+        factory.containerProperties.ackMode = ContainerProperties.AckMode.MANUAL
         factory.setCommonErrorHandler(object : CommonErrorHandler {
             override fun handleRemaining(thrownException: Exception, records: List<org.apache.kafka.clients.consumer.ConsumerRecord<*, *>>, consumer: org.apache.kafka.clients.consumer.Consumer<*, *>, container: MessageListenerContainer) {
                 logger.error("Error in consumer: ${thrownException.message}", thrownException)
