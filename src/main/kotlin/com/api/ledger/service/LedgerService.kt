@@ -15,6 +15,7 @@ import org.springframework.kafka.support.Acknowledgment
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
+import kotlin.time.Duration
 
 @Service
 class LedgerService(
@@ -41,15 +42,15 @@ class LedgerService(
                 when (responseEntity.statusCode) {
                     HttpStatus.OK -> saveLedgerLog(request)
                     HttpStatus.BAD_REQUEST -> {
-                        sendFailedNotification(request, "Bad Request: ${responseEntity.body}")
+                        saveFailLog(request, "Bad Request: ${responseEntity.body}")
                             .then(Mono.error(BadRequestException("Bad Request: ${responseEntity.body}")))
                     }
                     HttpStatus.INTERNAL_SERVER_ERROR -> {
-                        sendFailedNotification(request, "Internal Server Error: ${responseEntity.body}")
+                        saveFailLog(request, "Internal Server Error: ${responseEntity.body}")
                             .then(Mono.error(InternalServerException("Internal Server Error: ${responseEntity.body}")))
                     }
                     else -> {
-                        sendFailedNotification(request, "Unexpected status code: ${responseEntity.statusCode}")
+                        saveFailLog(request, "Unexpected status code: ${responseEntity.statusCode}")
                             .then(Mono.error(UnexpectedStatusCodeException("Unexpected status code: ${responseEntity.statusCode}")))
                     }
                 }
@@ -61,7 +62,7 @@ class LedgerService(
                         println("Retrying due to error: ${it.failure().message}")
                     },
             ).onErrorResume { error ->
-                sendFailedNotification(request, error.message)
+                saveFailLog(request, error.message)
                     .then(Mono.empty())
             }
 
@@ -85,7 +86,7 @@ class LedgerService(
                 sendLedgerStatus(request.orderId, OrderStatusType.COMPLETED)
             }
 
-    private fun sendFailedNotification(
+    private fun saveFailLog(
         request: LedgerRequest,
         message: String?,
     ): Mono<Void> =

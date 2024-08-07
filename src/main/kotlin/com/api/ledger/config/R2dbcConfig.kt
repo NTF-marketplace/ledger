@@ -1,5 +1,8 @@
 package com.api.ledger.config
 
+import com.api.ledger.enums.ChainType
+import com.api.ledger.util.ChainTypeConvert
+import com.api.ledger.util.StringToEnumConverter
 import io.r2dbc.postgresql.PostgresqlConnectionConfiguration
 import io.r2dbc.postgresql.PostgresqlConnectionFactory
 import io.r2dbc.postgresql.codec.EnumCodec
@@ -20,26 +23,26 @@ import java.util.ArrayList
 class R2dbcConfig : AbstractR2dbcConfiguration() {
     @Bean
     override fun connectionFactory(): PostgresqlConnectionFactory {
-        val configuration =
-            PostgresqlConnectionConfiguration
-                .builder()
-                .host("localhost")
-                .port(5436)
-                .database("market")
-                .username("market")
-                .password("market")
-                .codecRegistrar(
-                    EnumCodec
-                        .builder()
-                        .build(),
-                ).build()
+        val configuration = PostgresqlConnectionConfiguration.builder()
+            .host("localhost")
+            .port(5437)
+            .database("ledger")
+            .username("ledger")
+            .password("ledger")
+            .codecRegistrar(
+                EnumCodec.builder()
+                    .withEnum("chain_type", ChainType::class.java)
+                    .build()
+            )
+            .build()
         return PostgresqlConnectionFactory(configuration)
     }
 
     @Bean
     override fun r2dbcCustomConversions(): R2dbcCustomConversions {
         val converters: MutableList<Converter<*, *>?> = ArrayList<Converter<*, *>?>()
-
+        converters.add(ChainTypeConvert(ChainType::class.java))
+        converters.add(StringToEnumConverter(ChainType::class.java))
         return R2dbcCustomConversions(storeConversions, converters)
     }
 
