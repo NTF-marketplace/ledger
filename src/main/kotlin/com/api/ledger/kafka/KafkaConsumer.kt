@@ -1,6 +1,5 @@
 package com.api.ledger.kafka
 
-import com.api.ledger.enums.ChainType
 import com.api.ledger.kafka.dto.LedgerRequest
 import com.api.ledger.service.LedgerService
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -12,7 +11,6 @@ import org.springframework.messaging.handler.annotation.Header
 import org.springframework.messaging.handler.annotation.Payload
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
-import java.math.BigDecimal
 
 @Service
 class KafkaConsumer(
