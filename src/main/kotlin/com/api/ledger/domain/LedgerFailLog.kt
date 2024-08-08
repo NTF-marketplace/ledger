@@ -8,5 +8,5 @@ data class LedgerFailLog(
     @Id val id: Long? = null,
     val orderId: Long,
     val createdAt: Long? = System.currentTimeMillis(),
-    val message: String?
+    val message: String?,
 )

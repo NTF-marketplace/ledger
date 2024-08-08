@@ -8,14 +8,15 @@ import reactor.core.publisher.Mono
 
 @Service
 class KafkaProducer(
-    private val kafkaTemplate: KafkaTemplate<String,Any>,
+    private val kafkaTemplate: KafkaTemplate<String, Any>,
 ) {
     private val logger = LoggerFactory.getLogger(KafkaProducer::class.java)
-    fun sendLedgerStatus(request: LedgerStatusRequest): Mono<Void> {
-        return Mono.create { sink ->
+
+    fun sendLedgerStatus(request: LedgerStatusRequest): Mono<Void> =
+        Mono.create { sink ->
             val future = kafkaTemplate.send("ledgerStatus-topic", request)
             future.whenComplete { result, ex ->
-                if(ex== null) {
+                if (ex == null) {
                     logger.info("Sent ledger request successfully: ${result?.recordMetadata}")
                     sink.success()
                 } else {
@@ -24,5 +25,4 @@ class KafkaProducer(
                 }
             }
         }
-    }
 }
