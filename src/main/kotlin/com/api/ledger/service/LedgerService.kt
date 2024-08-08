@@ -15,7 +15,6 @@ import org.springframework.kafka.support.Acknowledgment
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
-import kotlin.time.Duration
 
 @Service
 class LedgerService(
@@ -24,22 +23,21 @@ class LedgerService(
     private val ledgerFailLogRepository: LedgerFailLogRepository,
     private val kafkaProducer: KafkaProducer,
 ) {
-
     // 돋시성 이슈는 어떻게 해결핲것인지 좀 생각해보자
     // transfer -> ledger -> 상태변경
     // 그럼 candel 이 있을 이유가 굳이 있긴한다?
     // TODO("각각 다른 커스텀에러만들기")
-    fun ledger(request: LedgerRequest): Mono<Void> {
-        return walletApiService.transfer(
-            TransferRequest(
-                fromAddress = request.orderAddress,
-                toAddress = request.address,
-                chainType = request.chainType,
-                amount = request.price,
-                nftId = request.nftId
-            )
-        )
-            .flatMap { responseEntity ->
+    fun ledger(request: LedgerRequest): Mono<Void> =
+        walletApiService
+            .transfer(
+                TransferRequest(
+                    fromAddress = request.orderAddress,
+                    toAddress = request.address,
+                    chainType = request.chainType,
+                    amount = request.price,
+                    nftId = request.nftId,
+                ),
+            ).flatMap { responseEntity ->
                 when (responseEntity.statusCode) {
                     HttpStatus.OK -> saveLedgerLog(request)
                     HttpStatus.BAD_REQUEST -> {
@@ -55,60 +53,69 @@ class LedgerService(
                             .then(Mono.error(UnexpectedStatusCodeException("Unexpected status code: ${responseEntity.statusCode}")))
                     }
                 }
-            }
-            .retryWhen(
-                Retry.max(3)
+            }.retryWhen(
+                Retry
+                    .max(3)
                     .filter { it is InternalServerException }
                     .doBeforeRetry {
                         println("Retrying due to error: ${it.failure().message}")
-                    }
-            )
-            .onErrorResume { error ->
+                    },
+            ).onErrorResume { error ->
                 sendFailedNotification(request, error.message)
                     .then(Mono.empty())
             }
-    }
 
     fun orderFailureAndMoveToNext(acknowledgment: Acknowledgment): Mono<Void> {
         acknowledgment.acknowledge()
         return Mono.empty()
     }
 
+    private fun saveLedgerLog(request: LedgerRequest): Mono<Void> =
+        ledgerRepository
+            .save(
+                Ledger(
+                    nftId = request.nftId,
+                    saleAddress = request.address,
+                    orderAddress = request.orderAddress,
+                    createdAt = System.currentTimeMillis(),
+                    ledgerPrice = request.price,
+                    chainType = request.chainType,
+                ),
+            ).flatMap {
+                sendLedgerStatus(request.orderId, OrderStatusType.COMPLETED)
+            }
 
-    private fun saveLedgerLog(request: LedgerRequest): Mono<Void> {
-        return ledgerRepository.save(
-            Ledger(
-                nftId = request.nftId,
-                saleAddress = request.address,
-                orderAddress = request.orderAddress,
-                createdAt = System.currentTimeMillis(),
-                ledgerPrice = request.price,
-                chainType = request.chainType
-            )
-        ).flatMap {
-            sendLedgerStatus(request.orderId, OrderStatusType.COMPLETED)
-        }
-    }
+    private fun sendFailedNotification(
+        request: LedgerRequest,
+        message: String?,
+    ): Mono<Void> =
+        ledgerFailLogRepository
+            .save(
+                LedgerFailLog(
+                    orderId = request.orderId,
+                    message = message,
+                ),
+            ).flatMap {
+                sendLedgerStatus(request.orderId, OrderStatusType.FAILED)
+            }
 
-    private fun sendFailedNotification(request: LedgerRequest, message: String?): Mono<Void> {
-        return ledgerFailLogRepository.save(
-            LedgerFailLog(
-                orderId = request.orderId,
-                message = message
-            )
-        ).flatMap {
-            sendLedgerStatus(request.orderId, OrderStatusType.FAILED)
-        }
-    }
-
-    private fun sendLedgerStatus(orderId: Long, status: OrderStatusType): Mono<Void> {
-        return kafkaProducer.sendLedgerStatus(
-            LedgerStatusRequest(orderId, status)
+    private fun sendLedgerStatus(
+        orderId: Long,
+        status: OrderStatusType,
+    ): Mono<Void> =
+        kafkaProducer.sendLedgerStatus(
+            LedgerStatusRequest(orderId, status),
         )
-    }
-
 }
 
-class BadRequestException(message: String) : RuntimeException(message)
-class InternalServerException(message: String) : RuntimeException(message)
-class UnexpectedStatusCodeException(message: String) : RuntimeException(message)
+class BadRequestException(
+    message: String,
+) : RuntimeException(message)
+
+class InternalServerException(
+    message: String,
+) : RuntimeException(message)
+
+class UnexpectedStatusCodeException(
+    message: String,
+) : RuntimeException(message)

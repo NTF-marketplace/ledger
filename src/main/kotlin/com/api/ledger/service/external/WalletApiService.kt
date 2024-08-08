@@ -1,6 +1,5 @@
 package com.api.ledger.service.external
 
-import com.api.ledger.kafka.dto.LedgerRequest
 import com.api.ledger.properties.WalletApiProperties
 import com.api.ledger.service.dto.TransferRequest
 import org.springframework.http.MediaType
@@ -13,20 +12,19 @@ import reactor.core.publisher.Mono
 class WalletApiService(
     private val walletApiProperties: WalletApiProperties,
 ) {
+    private val webClient =
+        WebClient
+            .builder()
+            .baseUrl(walletApiProperties.uri)
+            .build()
 
-    private val webClient = WebClient.builder()
-        .baseUrl(walletApiProperties.uri)
-        .build()
-
-    fun transfer(request: TransferRequest): Mono<ResponseEntity<String>> {
-        return webClient.post()
+    fun transfer(request: TransferRequest): Mono<ResponseEntity<String>> =
+        webClient
+            .post()
             .uri { uriBuilder ->
                 uriBuilder.path("/v1/transfer").build()
-            }
-            .contentType(MediaType.APPLICATION_JSON)
+            }.contentType(MediaType.APPLICATION_JSON)
             .bodyValue(request)
             .retrieve()
             .toEntity(String::class.java)
-    }
-
 }

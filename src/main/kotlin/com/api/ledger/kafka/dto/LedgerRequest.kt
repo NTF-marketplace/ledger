@@ -9,6 +9,5 @@ data class LedgerRequest(
     val address: String,
     val price: BigDecimal,
     val chainType: ChainType,
-    val orderAddress: String
+    val orderAddress: String,
 )
-
