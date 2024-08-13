@@ -18,20 +18,21 @@ import java.util.ArrayList
 @Configuration
 @EnableR2dbcRepositories
 class R2dbcConfig : AbstractR2dbcConfiguration() {
-
     @Bean
     override fun connectionFactory(): PostgresqlConnectionFactory {
-        val configuration = PostgresqlConnectionConfiguration.builder()
-            .host("localhost")
-            .port(5436)
-            .database("market")
-            .username("market")
-            .password("market")
-            .codecRegistrar(
-                EnumCodec.builder()
-                    .build()
-            )
-            .build()
+        val configuration =
+            PostgresqlConnectionConfiguration
+                .builder()
+                .host("localhost")
+                .port(5436)
+                .database("market")
+                .username("market")
+                .password("market")
+                .codecRegistrar(
+                    EnumCodec
+                        .builder()
+                        .build(),
+                ).build()
         return PostgresqlConnectionFactory(configuration)
     }
 
@@ -43,12 +44,8 @@ class R2dbcConfig : AbstractR2dbcConfiguration() {
     }
 
     @Bean
-    fun transactionManager(connectionFactory: ConnectionFactory?): ReactiveTransactionManager {
-        return R2dbcTransactionManager(connectionFactory!!)
-    }
+    fun transactionManager(connectionFactory: ConnectionFactory?): ReactiveTransactionManager = R2dbcTransactionManager(connectionFactory!!)
 
     @Bean
-    fun r2dbcEntityTemplate(connectionFactory: ConnectionFactory?): R2dbcEntityTemplate {
-        return R2dbcEntityTemplate(connectionFactory!!)
-    }
+    fun r2dbcEntityTemplate(connectionFactory: ConnectionFactory?): R2dbcEntityTemplate = R2dbcEntityTemplate(connectionFactory!!)
 }

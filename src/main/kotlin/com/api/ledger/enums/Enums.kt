@@ -12,4 +12,4 @@ enum class ChainType {
     POLYGON_AMOY,
 }
 
-enum class OrderStatusType { PENDING,FAILED,CANCELD,COMPLETED }
+enum class OrderStatusType { PENDING, FAILED, CANCELD, COMPLETED }

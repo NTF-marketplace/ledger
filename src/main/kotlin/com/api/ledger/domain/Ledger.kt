@@ -1,7 +1,6 @@
 package com.api.ledger.domain
 
 import com.api.ledger.enums.ChainType
-import com.api.ledger.enums.TokenType
 import org.springframework.data.annotation.Id
 import org.springframework.data.relational.core.mapping.Table
 import java.math.BigDecimal

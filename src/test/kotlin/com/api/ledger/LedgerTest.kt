@@ -14,13 +14,14 @@ class LedgerTest(
 ) {
     @Test
     fun walletApiTest() {
-        val reuqest = TransferRequest(
-            toAddress = "0x01b72b4aa3f66f213d62d53e829bc172a6a72867",
-            fromAddress = "0x01b82b4aa3f66f213d62d53e829bc172a6a72867",
-            nftId =  4,
-            chainType = ChainType.POLYGON_MAINNET,
-            amount = BigDecimal(1.23)
-        )
+        val reuqest =
+            TransferRequest(
+                toAddress = "0x01b72b4aa3f66f213d62d53e829bc172a6a72867",
+                fromAddress = "0x01b82b4aa3f66f213d62d53e829bc172a6a72867",
+                nftId = 4,
+                chainType = ChainType.POLYGON_MAINNET,
+                amount = BigDecimal(1.23),
+            )
         walletApiService.transfer(request = reuqest).block()
     }
 }
