@@ -10,8 +10,8 @@ import com.api.ledger.kafka.dto.LedgerRequest
 import com.api.ledger.kafka.dto.LedgerStatusRequest
 import com.api.ledger.service.dto.TransferRequest
 import com.api.ledger.service.external.WalletApiService
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
-import org.springframework.kafka.support.Acknowledgment
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
@@ -23,89 +23,104 @@ class LedgerService(
     private val ledgerFailLogRepository: LedgerFailLogRepository,
     private val kafkaProducer: KafkaProducer,
 ) {
-    // 돋시성 이슈는 어떻게 해결핲것인지 좀 생각해보자
-    // transfer -> ledger -> 상태변경
-    // 그럼 candel 이 있을 이유가 굳이 있긴한다?
-    // TODO("각각 다른 커스텀에러만들기")
-    fun ledger(request: LedgerRequest): Mono<Void> =
-        walletApiService
-            .transfer(
-                TransferRequest(
-                    fromAddress = request.orderAddress,
-                    toAddress = request.address,
-                    chainType = request.chainType,
-                    amount = request.price,
-                    nftId = request.nftId,
-                ),
-            ).flatMap { responseEntity ->
+
+    private val logger = LoggerFactory.getLogger(LedgerService::class.java)
+
+    fun ledger(request: LedgerRequest): Mono<Void> {
+        logger.info("ledger 함수 시작: $request")
+        return walletApiService.transfer(
+            TransferRequest(
+                fromAddress = request.orderAddress,
+                toAddress = request.address,
+                chainType = request.chainType,
+                amount = request.price,
+                nftId = request.nftId
+            )
+        )
+            .flatMap { responseEntity ->
+                logger.info("transfer 응답 수신: ${responseEntity.statusCode}")
                 when (responseEntity.statusCode) {
                     HttpStatus.OK -> saveLedgerLog(request)
+                        .doOnSuccess { logger.info("Ledger 로그 저장 성공") }
+                        .doOnError { logger.error("Ledger 로그 저장 실패", it) }
+
                     HttpStatus.BAD_REQUEST -> {
-                        sendFailedNotification(request, "Bad Request: ${responseEntity.body}")
+                        logger.warn("Bad Request 발생")
+                        saveFailLog(request, "Bad Request: ${responseEntity.body}")
                             .then(Mono.error(BadRequestException("Bad Request: ${responseEntity.body}")))
                     }
+
                     HttpStatus.INTERNAL_SERVER_ERROR -> {
-                        sendFailedNotification(request, "Internal Server Error: ${responseEntity.body}")
+                        logger.error("Internal Server Error 발생")
+                        saveFailLog(request, "Internal Server Error: ${responseEntity.body}")
                             .then(Mono.error(InternalServerException("Internal Server Error: ${responseEntity.body}")))
                     }
+
                     else -> {
-                        sendFailedNotification(request, "Unexpected status code: ${responseEntity.statusCode}")
+                        logger.error("예상치 못한 상태 코드: ${responseEntity.statusCode}")
+                        saveFailLog(request, "Unexpected status code: ${responseEntity.statusCode}")
                             .then(Mono.error(UnexpectedStatusCodeException("Unexpected status code: ${responseEntity.statusCode}")))
                     }
                 }
-            }.retryWhen(
-                Retry
-                    .max(3)
+            }
+            .retryWhen(
+                Retry.max(3)
                     .filter { it is InternalServerException }
                     .doBeforeRetry {
-                        println("Retrying due to error: ${it.failure().message}")
-                    },
-            ).onErrorResume { error ->
-                sendFailedNotification(request, error.message)
+                        logger.info("재시도 중: ${it.failure().message}")
+                    }
+            )
+            .onErrorResume { error ->
+                logger.error("최종 에러 발생", error)
+                saveFailLog(request, error.message)
                     .then(Mono.empty())
             }
-
-    fun orderFailureAndMoveToNext(acknowledgment: Acknowledgment): Mono<Void> {
-        acknowledgment.acknowledge()
-        return Mono.empty()
     }
 
-    private fun saveLedgerLog(request: LedgerRequest): Mono<Void> =
-        ledgerRepository
-            .save(
-                Ledger(
-                    nftId = request.nftId,
-                    saleAddress = request.address,
-                    orderAddress = request.orderAddress,
-                    createdAt = System.currentTimeMillis(),
-                    ledgerPrice = request.price,
-                    chainType = request.chainType,
-                ),
-            ).flatMap {
+    private fun saveLedgerLog(request: LedgerRequest): Mono<Void> {
+        logger.info("saveLedgerLog 함수 시작: $request")
+        return ledgerRepository.save(
+            Ledger(
+                nftId = request.nftId,
+                saleAddress = request.address,
+                orderAddress = request.orderAddress,
+                createdAt = System.currentTimeMillis(),
+                ledgerPrice = request.price,
+                chainType = request.chainType
+            )
+        )
+            .flatMap {
+                logger.info("Ledger 저장 완료, 상태 전송 시작")
                 sendLedgerStatus(request.orderId, OrderStatusType.COMPLETED)
             }
+            .doOnSuccess { logger.info("Ledger 저장 및 상태 전송 완료") }
+            .doOnError { logger.error("Ledger 저장 또는 상태 전송 실패", it) }
+    }
 
-    private fun sendFailedNotification(
-        request: LedgerRequest,
-        message: String?,
-    ): Mono<Void> =
-        ledgerFailLogRepository
-            .save(
-                LedgerFailLog(
-                    orderId = request.orderId,
-                    message = message,
-                ),
-            ).flatMap {
+    private fun saveFailLog(request: LedgerRequest, message: String?): Mono<Void> {
+        logger.info("saveFailLog 함수 시작: $request, 메시지: $message")
+        return ledgerFailLogRepository.save(
+            LedgerFailLog(
+                orderId = request.orderId,
+                message = message
+            )
+        )
+            .flatMap {
+                logger.info("실패 로그 저장 완료, 상태 전송 시작")
                 sendLedgerStatus(request.orderId, OrderStatusType.FAILED)
             }
+            .doOnSuccess { logger.info("실패 로그 저장 및 상태 전송 완료") }
+            .doOnError { logger.error("실패 로그 저장 또는 상태 전송 실패", it) }
+    }
 
-    private fun sendLedgerStatus(
-        orderId: Long,
-        status: OrderStatusType,
-    ): Mono<Void> =
-        kafkaProducer.sendLedgerStatus(
-            LedgerStatusRequest(orderId, status),
+    private fun sendLedgerStatus(orderId: Long, status: OrderStatusType): Mono<Void> {
+        logger.info("sendLedgerStatus 함수 시작: orderId=$orderId, status=$status")
+        return kafkaProducer.sendLedgerStatus(
+            LedgerStatusRequest(orderId, status)
         )
+            .doOnSuccess { logger.info("Ledger 상태 전송 완료") }
+            .doOnError { logger.error("Ledger 상태 전송 실패", it) }
+    }
 }
 
 class BadRequestException(

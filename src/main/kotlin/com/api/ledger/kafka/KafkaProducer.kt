@@ -11,18 +11,18 @@ class KafkaProducer(
     private val kafkaTemplate: KafkaTemplate<String, Any>,
 ) {
     private val logger = LoggerFactory.getLogger(KafkaProducer::class.java)
-
-    fun sendLedgerStatus(request: LedgerStatusRequest): Mono<Void> =
-        Mono.create { sink ->
-            val future = kafkaTemplate.send("ledgerStatus-topic", request)
+    fun sendLedgerStatus(request: LedgerStatusRequest): Mono<Void> {
+        return Mono.create { sink ->
+            val future = kafkaTemplate.send("ledgerStatus-topic", request.orderId.toString(), request)
             future.whenComplete { result, ex ->
                 if (ex == null) {
                     logger.info("Sent ledger request successfully: ${result?.recordMetadata}")
                     sink.success()
                 } else {
-                    logger.error("Faild to send", ex)
+                    logger.error("Failed to send", ex)
                     sink.error(ex)
                 }
             }
         }
+    }
 }
