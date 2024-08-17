@@ -1,5 +1,7 @@
 package com.api.ledger.enums
 
+import java.io.Serializable
+
 enum class TokenType { MATIC, ETH, BTC }
 
 enum class ChainType {
@@ -12,4 +14,4 @@ enum class ChainType {
     POLYGON_AMOY,
 }
 
-enum class OrderStatusType { PENDING, FAILED, CANCELD, COMPLETED }
+enum class OrderStatusType: Serializable { PENDING,FAILED,CANCELD,COMPLETED }

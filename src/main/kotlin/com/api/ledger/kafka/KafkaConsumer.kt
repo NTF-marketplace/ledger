@@ -39,14 +39,19 @@ class KafkaConsumer(
 
         processLedgerRequest(ledgerRequest)
             .doOnSuccess {
-                acknowledgment.acknowledge() // 메시지 수동 확인
-            }.onErrorResume {
-                ledgerService.orderFailureAndMoveToNext(acknowledgment) // 에러 발생 시 처리
-            }.subscribe()
+                acknowledgment.acknowledge()
+            }
+            .doOnError {
+                acknowledgment.acknowledge()
+            }
+            .subscribe()
     }
 
-    private fun convertToLedgerRequest(payload: LinkedHashMap<String, Any>): LedgerRequest =
-        objectMapper.convertValue(payload, LedgerRequest::class.java)
+    private fun convertToLedgerRequest(payload: LinkedHashMap<String, Any>): LedgerRequest {
+        return objectMapper.convertValue(payload, LedgerRequest::class.java)
+    }
 
-    fun processLedgerRequest(ledgerRequest: LedgerRequest): Mono<Void> = ledgerService.ledger(ledgerRequest)
+    fun processLedgerRequest(ledgerRequest: LedgerRequest): Mono<Void> {
+        return ledgerService.ledger(ledgerRequest)
+    }
 }
