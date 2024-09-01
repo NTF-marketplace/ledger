@@ -4,6 +4,10 @@ import java.io.Serializable
 
 enum class TokenType { MATIC, ETH, BTC }
 
+enum class ContractType{
+    ERC1155,
+    ERC721
+}
 enum class ChainType {
     ETHEREUM_MAINNET,
     LINEA_MAINNET,

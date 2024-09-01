@@ -5,6 +5,7 @@ import com.api.ledger.enums.ChainType
 import com.api.ledger.kafka.dto.LedgerRequest
 import com.api.ledger.service.LedgerService
 import com.api.ledger.service.dto.TransferRequest
+import com.api.ledger.service.external.RedisService
 import com.api.ledger.service.external.WalletApiService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -16,6 +17,7 @@ class LedgerTest(
     @Autowired private val walletApiService: WalletApiService,
     @Autowired private val ledgerService: LedgerService,
     @Autowired private val ledgerFailLogRepository: LedgerFailLogRepository,
+    @Autowired private val redisService: RedisService,
 ) {
     @Test
     fun walletApiTest() {
@@ -30,5 +32,11 @@ class LedgerTest(
         )
 
         ledgerService.ledger(request).block()
+    }
+
+    @Test
+    fun redisApiTest() {
+        val res = redisService.getNft(nftId = 4L).block()
+        println(res.toString())
     }
 }
