@@ -12,6 +12,7 @@ import com.api.ledger.service.dto.TransferRequest
 import com.api.ledger.service.external.WalletApiService
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
@@ -27,55 +28,65 @@ class LedgerService(
     private val logger = LoggerFactory.getLogger(LedgerService::class.java)
 
     fun ledger(request: LedgerRequest): Mono<Void> {
-        logger.info("ledger 함수 시작: $request")
-        return walletApiService.transfer(
-            TransferRequest(
-                fromAddress = request.orderAddress,
-                toAddress = request.address,
-                chainType = request.chainType,
-                amount = request.price,
-                nftId = request.nftId
-            )
-        )
-            .flatMap { responseEntity ->
-                logger.info("transfer 응답 수신: ${responseEntity.statusCode}")
-                when (responseEntity.statusCode) {
-                    HttpStatus.OK -> saveLedgerLog(request)
-                        .doOnSuccess { logger.info("Ledger 로그 저장 성공") }
-                        .doOnError { logger.error("Ledger 로그 저장 실패", it) }
-
-                    HttpStatus.BAD_REQUEST -> {
-                        logger.warn("Bad Request 발생")
-                        saveFailLog(request, "Bad Request: ${responseEntity.body}")
-                            .then(Mono.error(BadRequestException("Bad Request: ${responseEntity.body}")))
-                    }
-
-                    HttpStatus.INTERNAL_SERVER_ERROR -> {
-                        logger.error("Internal Server Error 발생")
-                        saveFailLog(request, "Internal Server Error: ${responseEntity.body}")
-                            .then(Mono.error(InternalServerException("Internal Server Error: ${responseEntity.body}")))
-                    }
-
-                    else -> {
-                        logger.error("예상치 못한 상태 코드: ${responseEntity.statusCode}")
-                        saveFailLog(request, "Unexpected status code: ${responseEntity.statusCode}")
-                            .then(Mono.error(UnexpectedStatusCodeException("Unexpected status code: ${responseEntity.statusCode}")))
-                    }
+        return ledgerRepository.existsByNftId(request.nftId)
+            .flatMap { exists ->
+                if (exists) {
+                    Mono.error(IllegalStateException("already ledger"))
+                } else {
+                    walletApiService.transfer(
+                        TransferRequest(
+                            fromAddress = request.orderAddress,
+                            toAddress = request.address,
+                            chainType = request.chainType,
+                            amount = request.price,
+                            nftId = request.nftId
+                        )
+                    )
+                        .flatMap { responseEntity ->
+                            handleTransferResponse(responseEntity, request)
+                        }
+                        .retryWhen(
+                            Retry.max(3)
+                                .filter { it is InternalServerException }
+                                .doBeforeRetry {
+                                    logger.info("재시도 중: ${it.failure().message}")
+                                }
+                        )
                 }
             }
-            .retryWhen(
-                Retry.max(3)
-                    .filter { it is InternalServerException }
-                    .doBeforeRetry {
-                        logger.info("재시도 중: ${it.failure().message}")
-                    }
-            )
             .onErrorResume { error ->
                 logger.error("최종 에러 발생", error)
                 saveFailLog(request, error.message)
                     .then(Mono.empty())
             }
     }
+
+    private fun handleTransferResponse(responseEntity: ResponseEntity<*>, request: LedgerRequest): Mono<Void> {
+        return when (responseEntity.statusCode) {
+            HttpStatus.OK -> saveLedgerLog(request)
+                .doOnSuccess { logger.info("Ledger 로그 저장 성공") }
+                .doOnError { logger.error("Ledger 로그 저장 실패", it) }
+
+            HttpStatus.BAD_REQUEST -> {
+                logger.warn("Bad Request 발생")
+                saveFailLog(request, "Bad Request: ${responseEntity.body}")
+                    .then(Mono.error(BadRequestException("Bad Request: ${responseEntity.body}")))
+            }
+
+            HttpStatus.INTERNAL_SERVER_ERROR -> {
+                logger.error("Internal Server Error 발생")
+                saveFailLog(request, "Internal Server Error: ${responseEntity.body}")
+                    .then(Mono.error(InternalServerException("Internal Server Error: ${responseEntity.body}")))
+            }
+
+            else -> {
+                logger.error("예상치 못한 상태 코드: ${responseEntity.statusCode}")
+                saveFailLog(request, "Unexpected status code: ${responseEntity.statusCode}")
+                    .then(Mono.error(UnexpectedStatusCodeException("Unexpected status code: ${responseEntity.statusCode}")))
+            }
+        }
+    }
+
 
     private fun saveLedgerLog(request: LedgerRequest): Mono<Void> {
         logger.info("saveLedgerLog 함수 시작: $request")
@@ -96,7 +107,7 @@ class LedgerService(
             .doOnSuccess { logger.info("Ledger 저장 및 상태 전송 완료") }
             .doOnError { logger.error("Ledger 저장 또는 상태 전송 실패", it) }
     }
-
+    //여기로 오게끔
     private fun saveFailLog(request: LedgerRequest, message: String?): Mono<Void> {
         logger.info("saveFailLog 함수 시작: $request, 메시지: $message")
         return ledgerFailLogRepository.save(
