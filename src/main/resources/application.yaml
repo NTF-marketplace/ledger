@@ -15,7 +15,7 @@ spring:
     username: ledger
     password: ledger
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: localhost:9094,localhost:19094,localhost:29094
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
