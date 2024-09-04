@@ -31,13 +31,6 @@ class KafkaConfig {
     @Bean
     fun kafkaAdmin(): KafkaAdmin = KafkaAdmin(mapOf(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers))
 
-    @Bean
-    fun ledgerTopic(): NewTopic =
-        TopicBuilder
-            .name("ledger-topic")
-            .partitions(4)
-            .replicas(1)
-            .build()
 
     @Bean
     fun ledgerStatusTopic(): NewTopic =
