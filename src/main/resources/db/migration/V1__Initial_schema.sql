@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS ledger (
     created_at BIGINT not null,
     ledger_price DECIMAL(19, 4) NOT NULL,
     chain_type chain_type not null,
-    order_id BIGINT NOT NULL
+    order_id BIGINT UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS ledger_fail_log (
