@@ -37,7 +37,7 @@ class KafkaConfig {
         TopicBuilder
             .name("ledgerStatus-topic")
             .partitions(4)
-            .replicas(1)
+            .replicas(3)
             .build()
 
     @Bean
