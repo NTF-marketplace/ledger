@@ -10,7 +10,6 @@ import org.springframework.kafka.support.KafkaHeaders
 import org.springframework.messaging.handler.annotation.Header
 import org.springframework.messaging.handler.annotation.Payload
 import org.springframework.stereotype.Service
-import reactor.core.publisher.Mono
 
 @Service
 class KafkaConsumer(
@@ -37,7 +36,7 @@ class KafkaConsumer(
             "Received LedgerRequest: $ledgerRequest from topic: $topic, partition: $partition, offset: $offset, timestamp: $timestamp",
         )
 
-        processLedgerRequest(ledgerRequest)
+        ledgerService.ledger(ledgerRequest)
             .doOnSuccess {
                 acknowledgment.acknowledge()
             }
@@ -49,9 +48,5 @@ class KafkaConsumer(
 
     private fun convertToLedgerRequest(payload: LinkedHashMap<String, Any>): LedgerRequest {
         return objectMapper.convertValue(payload, LedgerRequest::class.java)
-    }
-
-    fun processLedgerRequest(ledgerRequest: LedgerRequest): Mono<Void> {
-        return ledgerService.ledger(ledgerRequest)
     }
 }
