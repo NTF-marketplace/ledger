@@ -14,4 +14,5 @@ data class Ledger(
     val createdAt: Long? = System.currentTimeMillis(),
     val ledgerPrice: BigDecimal,
     val chainType: ChainType,
+    val orderId: Long
 )

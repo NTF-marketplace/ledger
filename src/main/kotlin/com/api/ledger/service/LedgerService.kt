@@ -28,7 +28,7 @@ class LedgerService(
     private val logger = LoggerFactory.getLogger(LedgerService::class.java)
 
     fun ledger(request: LedgerRequest): Mono<Void> {
-        return ledgerRepository.existsByNftId(request.nftId)
+        return ledgerRepository.existsByOrderId(request.orderId)
             .flatMap { exists ->
                 if (exists) {
                     Mono.error(IllegalStateException("already ledger"))
@@ -97,7 +97,8 @@ class LedgerService(
                 orderAddress = request.orderAddress,
                 createdAt = System.currentTimeMillis(),
                 ledgerPrice = request.price,
-                chainType = request.chainType
+                chainType = request.chainType,
+                orderId = request.orderId
             )
         )
             .flatMap {
