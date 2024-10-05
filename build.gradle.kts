@@ -36,6 +36,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-batch")
     implementation("co.elastic.clients:elasticsearch-java:8.15.2")
     implementation("org.springframework.data:spring-data-elasticsearch")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")

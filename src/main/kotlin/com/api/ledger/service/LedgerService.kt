@@ -20,6 +20,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
+import java.time.LocalDateTime
 
 @Service
 class LedgerService(
@@ -111,7 +112,7 @@ class LedgerService(
             }
             .then(Mono.defer {
                 logger.info("상태 전송 완료, Elasticsearch 업데이트 시작")
-                elasticsearchService.bulkUpdate(request.nftId, request.price)
+                elasticsearchService.bulkUpdate(request.nftId, request.price,LocalDateTime.now())
             })
             .doOnSuccess { logger.info("Elasticsearch 업데이트 완료") }
             .doOnError { logger.error("Ledger 저장, 상태 전송 또는 Elasticsearch 업데이트 실패", it) }

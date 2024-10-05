@@ -4,7 +4,6 @@ import com.api.ledger.service.dto.ElasticSearchUpdateData
 import com.api.ledger.service.dto.NftMetadataResponse
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.data.redis.core.ReactiveRedisTemplate
-import org.springframework.data.redis.core.ScanOptions
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -24,9 +23,11 @@ class RedisService(
                 ElasticSearchUpdateData(
                     id = nftMetadata.id,
                     chainType = nftMetadata.chainType,
-                    collectionName = nftMetadata.collectionName,
                     lastPrice = nftMetadata.lastPrice,
-                    collectionLogo = nftMetadata.collectionLogo
+                    collectionName = nftMetadata.collectionName,
+                    collectionLogo = nftMetadata.collectionLogo,
+                    ledgerTime = null,
+                    ledgerPrice = null,
                 )
             }
     }

@@ -1,6 +1,7 @@
 package com.api.ledger
 
 import com.api.ledger.domain.repository.LedgerFailLogRepository
+import com.api.ledger.enums.AGGREGATIONS_TYPE
 import com.api.ledger.enums.ChainType
 import com.api.ledger.kafka.dto.LedgerRequest
 import com.api.ledger.service.LedgerService
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
 import java.math.BigDecimal
+import java.time.LocalDateTime
 import kotlin.test.Test
 
 @SpringBootTest
@@ -46,7 +48,18 @@ class LedgerTest(
 
     @Test
     fun elasticSearch() {
-        elasticsearchService.bulkUpdate(4L,BigDecimal(5.3)).block()
+        elasticsearchService.bulkUpdate(1L,BigDecimal(5.3), LocalDateTime.now()).block()
+        elasticsearchService.bulkUpdate(2L,BigDecimal(3.3), LocalDateTime.now()).block()
+        elasticsearchService.bulkUpdate(4L,BigDecimal(5.3), LocalDateTime.now()).block()
+        elasticsearchService.bulkUpdate(3L,BigDecimal(2.8), LocalDateTime.now()).block()
+        elasticsearchService.bulkUpdate(9L,BigDecimal(3.8), LocalDateTime.now()).block()
+    }
+
+    @Test
+    fun asd() {
+        val res =elasticsearchService.updateRanking(AGGREGATIONS_TYPE.ONE_HOURS, limit = 50)
+        println("res : " + res.toString())
+        elasticsearchService.saveRankings(res)
     }
 
 }
