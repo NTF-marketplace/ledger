@@ -4,6 +4,7 @@ import com.api.ledger.service.dto.ElasticSearchUpdateData
 import com.api.ledger.service.dto.NftMetadataResponse
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.data.redis.core.ReactiveRedisTemplate
+import org.springframework.data.redis.core.ScanOptions
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -31,6 +32,27 @@ class RedisService(
                 )
             }
     }
+
+    fun getAllNfts(): Flux<ElasticSearchUpdateData> {
+        return reactiveRedisTemplate.scan(ScanOptions.scanOptions().match("NFT:*").count(1000).build())
+            .flatMap { key ->
+                reactiveRedisTemplate.opsForValue().get(key)
+                    .map { data ->
+                        val nftMetadata = objectMapper.convertValue(data, NftMetadataResponse::class.java)
+                        ElasticSearchUpdateData(
+                            id = nftMetadata.id,
+                            chainType = nftMetadata.chainType,
+                            lastPrice = nftMetadata.lastPrice,
+                            collectionName = nftMetadata.collectionName,
+                            collectionLogo = nftMetadata.collectionLogo,
+                            ledgerTime = null,
+                            ledgerPrice = null,
+                        )
+                    }
+            }
+    }
+
+
 
     fun getNft(nftId: Long): Mono<NftMetadataResponse> {
         return reactiveRedisTemplate.opsForValue().get("NFT:$nftId")

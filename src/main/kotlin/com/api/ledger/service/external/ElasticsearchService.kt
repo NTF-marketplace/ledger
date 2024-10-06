@@ -1,9 +1,12 @@
 package com.api.ledger.service.external
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch._types.SortOrder
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch._types.query_dsl.RangeQuery
 import co.elastic.clients.elasticsearch.core.BulkRequest
 import co.elastic.clients.elasticsearch.core.BulkResponse
+import co.elastic.clients.elasticsearch.core.SearchRequest
 import com.api.ledger.enums.AGGREGATIONS_TYPE
 import com.api.ledger.service.dto.CollectionRanking
 import com.api.ledger.service.dto.Document
@@ -22,6 +25,81 @@ class ElasticsearchService(
     private val client: ElasticsearchClient,
     private val redisService: RedisService,
 ) {
+
+    fun advancedSearchNFTs(
+        searchTerm: String,
+        minPrice: Double? = null,
+        maxPrice: Double? = null,
+        sortBy: String = "lastPrice",
+        sortOrder: String = "desc",
+        page: Int = 0,
+        size: Int = 10
+    ): Mono<List<Document>> {
+        return Mono.fromCallable {
+            val searchRequest = SearchRequest.Builder()
+                .index("nfts")
+                .query { q ->
+                    q.bool { b ->
+                        b.must(
+                            Query.of { q -> q.multiMatch { m ->
+                                m.fields("name", "description", "collectionName")
+                                    .query(searchTerm)
+                                    .fuzziness("AUTO")
+                            } }
+                        )
+                        if (minPrice != null || maxPrice != null) {
+                            b.filter(
+                                Query.of { q ->
+                                    q.range(
+                                        RangeQuery.of { r ->
+                                            r.number { n ->
+                                                n.field("lastPrice")
+                                                minPrice?.let { n.gte(it) }
+                                                maxPrice?.let { n.lte(it) }
+                                                n
+                                            }
+                                        }
+                                    )
+                                }
+                            )
+                        }
+                        b
+                    }
+                }
+                .sort { s ->
+                    s.field { f ->
+                        f.field(sortBy)
+                            .order(SortOrder.valueOf(sortOrder.uppercase()))
+                    }
+                }
+                .from(page * size)
+                .size(size)
+                .build()
+
+            val searchResponse = client.search(searchRequest, Document::class.java)
+            searchResponse.hits().hits().mapNotNull { it.source() }
+        }
+    }
+
+    fun searchCollections(collectionName: String, page: Int = 0, size: Int = 10): Mono<List<CollectionRanking>> {
+        return Mono.fromCallable {
+            val searchRequest = SearchRequest.Builder()
+                .index("rankings")
+                .query { q ->
+                    q.multiMatch { m ->
+                        m.fields("collectionName")
+                            .query(collectionName)
+                            .fuzziness("AUTO")
+                    }
+                }
+                .from(page * size)
+                .size(size)
+                .build()
+
+            val searchResponse = client.search(searchRequest, CollectionRanking::class.java)
+            searchResponse.hits().hits().mapNotNull { it.source() }
+        }
+    }
 
     fun saveRankings(rankingsByTimeRange: MutableMap<AGGREGATIONS_TYPE, List<CollectionRanking>>): Mono<Void> {
         return Flux.fromIterable(rankingsByTimeRange.entries)
@@ -91,31 +169,6 @@ class ElasticsearchService(
         }
     }
 
-
-//
-//
-//    fun updateRanking(type: AGGREGATIONS_TYPE, limit: Int = 10):  MutableMap<AGGREGATIONS_TYPE, List<CollectionRanking>> {
-//        val startTime = toInstant(type)
-//        val formattedStartTime = DateTimeFormatter.ISO_INSTANT.format(startTime)
-//
-//        val rangeQuery = RangeQuery.of { r ->
-//            r.date { d ->
-//                d.field("ledgerTime")
-//                    .gte(formattedStartTime)
-//            }
-//        }
-//
-//        val searchResponse = client.search({ search ->
-//            search.index("nfts")
-//                .size(limit)
-//                .query { q -> q.range(rangeQuery) }
-//        }, Document::class.java)
-//
-//        val documents = searchResponse.hits().hits().mapNotNull { it.source() }
-//        val rankings = groupAndAggregateResults(documents,type,limit)
-//        return mutableMapOf(type to rankings)
-//
-//    }
 
     private fun groupAndAggregateResults(
         documents: List<Document>,
