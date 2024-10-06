@@ -8,6 +8,7 @@ import com.api.ledger.enums.AGGREGATIONS_TYPE
 import com.api.ledger.service.dto.CollectionRanking
 import com.api.ledger.service.dto.Document
 import org.springframework.stereotype.Service
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -22,20 +23,25 @@ class ElasticsearchService(
     private val redisService: RedisService,
 ) {
 
-    fun saveRankings(rankingsByTimeRange: MutableMap<AGGREGATIONS_TYPE, List<CollectionRanking>>) {
-        rankingsByTimeRange.forEach { (type, rankings) ->
-            rankings.forEach { ranking ->
-                val response = client.index { indexRequest ->
-                    indexRequest.index("rankings")
-                        .id("${ranking.collectionName}-${ranking.chainType}-${type.name}")
-                        .document(ranking)
-                }
+    fun saveRankings(rankingsByTimeRange: MutableMap<AGGREGATIONS_TYPE, List<CollectionRanking>>): Mono<Void> {
+        return Flux.fromIterable(rankingsByTimeRange.entries)
+            .flatMap { (type, rankings) ->
+                Flux.fromIterable(rankings)
+                    .flatMap { ranking ->
+                        Mono.fromCallable {
+                            val response = client.index { indexRequest ->
+                                indexRequest.index("rankings")
+                                    .id("${ranking.collectionName}-${ranking.chainType}-${type.name}")
+                                    .document(ranking)
+                            }
 
-                if (response.result().name != "CREATED" && response.result().name != "UPDATED") {
-                    println("Failed to save ranking for ${ranking.collectionName} in ${type.name} range")
-                }
+                            if (response.result().name != "CREATED" && response.result().name != "UPDATED") {
+                                println("Failed to save ranking for ${ranking.collectionName} in ${type.name} range")
+                            }
+                        }
+                    }
             }
-        }
+            .then()
     }
 
     fun bulkUpdate(nftId: Long, price: BigDecimal, ledgerTime: LocalDateTime): Mono<BulkResponse> {
@@ -59,29 +65,57 @@ class ElasticsearchService(
             }
     }
 
+    fun updateRanking(type: AGGREGATIONS_TYPE, limit: Int = 10): Mono<MutableMap<AGGREGATIONS_TYPE, List<CollectionRanking>>> {
+        return Mono.defer {
+            val startTime = toInstant(type)
+            val formattedStartTime = DateTimeFormatter.ISO_INSTANT.format(startTime)
 
-    fun updateRanking(type: AGGREGATIONS_TYPE, limit: Int = 10):  MutableMap<AGGREGATIONS_TYPE, List<CollectionRanking>> {
-        val startTime = toInstant(type)
-        val formattedStartTime = DateTimeFormatter.ISO_INSTANT.format(startTime)
+            val rangeQuery = RangeQuery.of { r ->
+                r.date { d ->
+                    d.field("ledgerTime")
+                        .gte(formattedStartTime)
+                }
+            }
 
-        val rangeQuery = RangeQuery.of { r ->
-            r.date { d ->
-                d.field("ledgerTime")
-                    .gte(formattedStartTime)
+            Mono.fromCallable {
+                val searchResponse = client.search({ search ->
+                    search.index("nfts")
+                        .size(limit)
+                        .query { q -> q.range(rangeQuery) }
+                }, Document::class.java)
+
+                val documents = searchResponse.hits().hits().mapNotNull { it.source() }
+                val rankings = groupAndAggregateResults(documents, type, limit)
+                mutableMapOf(type to rankings)
             }
         }
-
-        val searchResponse = client.search({ search ->
-            search.index("nfts")
-                .size(limit)
-                .query { q -> q.range(rangeQuery) }
-        }, Document::class.java)
-
-        val documents = searchResponse.hits().hits().mapNotNull { it.source() }
-        val rankings = groupAndAggregateResults(documents,type,limit)
-        return mutableMapOf(type to rankings)
-
     }
+
+
+//
+//
+//    fun updateRanking(type: AGGREGATIONS_TYPE, limit: Int = 10):  MutableMap<AGGREGATIONS_TYPE, List<CollectionRanking>> {
+//        val startTime = toInstant(type)
+//        val formattedStartTime = DateTimeFormatter.ISO_INSTANT.format(startTime)
+//
+//        val rangeQuery = RangeQuery.of { r ->
+//            r.date { d ->
+//                d.field("ledgerTime")
+//                    .gte(formattedStartTime)
+//            }
+//        }
+//
+//        val searchResponse = client.search({ search ->
+//            search.index("nfts")
+//                .size(limit)
+//                .query { q -> q.range(rangeQuery) }
+//        }, Document::class.java)
+//
+//        val documents = searchResponse.hits().hits().mapNotNull { it.source() }
+//        val rankings = groupAndAggregateResults(documents,type,limit)
+//        return mutableMapOf(type to rankings)
+//
+//    }
 
     private fun groupAndAggregateResults(
         documents: List<Document>,

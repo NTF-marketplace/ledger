@@ -57,9 +57,9 @@ class LedgerTest(
 
     @Test
     fun asd() {
-        val res =elasticsearchService.updateRanking(AGGREGATIONS_TYPE.ONE_HOURS, limit = 50)
-        println("res : " + res.toString())
-        elasticsearchService.saveRankings(res)
+        val res =elasticsearchService.updateRanking(AGGREGATIONS_TYPE.ONE_HOURS, limit = 50).flatMap {
+            elasticsearchService.saveRankings(it)
+        }.block()
     }
 
 }
