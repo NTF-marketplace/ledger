@@ -20,6 +20,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
+import java.math.BigDecimal
 import java.time.LocalDateTime
 
 @Service
@@ -108,7 +109,7 @@ class LedgerService(
         )
             .flatMap {
                 logger.info("Ledger 저장 완료, 상태 전송 시작")
-                sendLedgerStatus(request.orderId, OrderStatusType.COMPLETED)
+                sendLedgerStatus(request.orderId, OrderStatusType.COMPLETED,it.ledgerPrice)
             }
             .then(Mono.defer {
                 logger.info("상태 전송 완료, Elasticsearch 업데이트 시작")
@@ -130,16 +131,16 @@ class LedgerService(
         )
             .flatMap {
                 logger.info("실패 로그 저장 완료, 상태 전송 시작")
-                sendLedgerStatus(request.orderId, OrderStatusType.FAILED)
+                sendLedgerStatus(request.orderId, OrderStatusType.FAILED,null)
             }
             .doOnSuccess { logger.info("실패 로그 저장 및 상태 전송 완료") }
             .doOnError { logger.error("실패 로그 저장 또는 상태 전송 실패", it) }
     }
 
-    private fun sendLedgerStatus(orderId: Long, status: OrderStatusType): Mono<Void> {
+    private fun sendLedgerStatus(orderId: Long, status: OrderStatusType,ledgerPrice: BigDecimal?): Mono<Void> {
         logger.info("sendLedgerStatus 함수 시작: orderId=$orderId, status=$status")
         return kafkaProducer.sendLedgerStatus(
-            LedgerStatusRequest(orderId, status)
+            LedgerStatusRequest(orderId, status, ledgerPrice)
         )
             .doOnSuccess { logger.info("Ledger 상태 전송 완료") }
             .doOnError { logger.error("Ledger 상태 전송 실패", it) }
