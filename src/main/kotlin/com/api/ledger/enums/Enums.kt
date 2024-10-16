@@ -20,5 +20,3 @@ enum class ChainType {
 }
 
 enum class OrderStatusType: Serializable { PENDING,FAILED,CANCELD,COMPLETED }
-
-enum class AGGREGATIONS_TYPE { ONE_HOURS, SIX_HOURS, ONE_DAY, SEVEN_DAY }
