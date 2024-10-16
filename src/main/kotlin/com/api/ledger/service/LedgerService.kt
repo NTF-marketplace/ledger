@@ -11,6 +11,7 @@ import com.api.ledger.exception.UnexpectedStatusCodeException
 import com.api.ledger.kafka.KafkaProducer
 import com.api.ledger.kafka.dto.LedgerRequest
 import com.api.ledger.kafka.dto.LedgerStatusRequest
+import com.api.ledger.service.dto.LedgerResponse
 import com.api.ledger.service.dto.TransferRequest
 import com.api.ledger.service.external.ElasticsearchService
 import com.api.ledger.service.external.WalletApiService
@@ -29,7 +30,6 @@ class LedgerService(
     private val walletApiService: WalletApiService,
     private val ledgerFailLogRepository: LedgerFailLogRepository,
     private val kafkaProducer: KafkaProducer,
-    private val elasticsearchService: ElasticsearchService,
 ) {
 
     private val logger = LoggerFactory.getLogger(LedgerService::class.java)
@@ -110,11 +110,14 @@ class LedgerService(
             .flatMap {
                 logger.info("Ledger 저장 완료, 상태 전송 시작")
                 sendLedgerStatus(request.orderId, OrderStatusType.COMPLETED,it.ledgerPrice)
+                    .then(
+                        if (OrderStatusType.COMPLETED == OrderStatusType.COMPLETED) {
+                            sendLedger(request.nftId, it.ledgerPrice, it.createdAt ?: System.currentTimeMillis())
+                        } else {
+                            Mono.empty()
+                        }
+                    )
             }
-            .then(Mono.defer {
-                logger.info("상태 전송 완료, Elasticsearch 업데이트 시작")
-                elasticsearchService.bulkUpdate(request.nftId, request.price,LocalDateTime.now())
-            })
             .doOnSuccess { logger.info("Elasticsearch 업데이트 완료") }
             .doOnError { logger.error("Ledger 저장, 상태 전송 또는 Elasticsearch 업데이트 실패", it) }
             .then()
@@ -135,6 +138,13 @@ class LedgerService(
             }
             .doOnSuccess { logger.info("실패 로그 저장 및 상태 전송 완료") }
             .doOnError { logger.error("실패 로그 저장 또는 상태 전송 실패", it) }
+    }
+
+    private fun sendLedger(nftId: Long,ledgerPrice: BigDecimal,ledgerTime:Long):Mono<Void> {
+        return kafkaProducer.sendLedgerResponse(LedgerResponse(nftId,ledgerPrice,ledgerTime))
+            .doOnSuccess { logger.info("Ledger 상태 전송 완료") }
+            .doOnError { logger.error("Ledger 상태 전송 실패", it) }
+
     }
 
     private fun sendLedgerStatus(orderId: Long, status: OrderStatusType,ledgerPrice: BigDecimal?): Mono<Void> {

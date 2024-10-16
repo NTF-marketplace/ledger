@@ -31,7 +31,7 @@ class ElasticsearchService(
                         Mono.fromCallable {
                             val response = client.index { indexRequest ->
                                 indexRequest.index("rankings")
-                                    .id("${ranking.collectionName}-${ranking.chainType}-${type.name}")
+                                    .id("${ranking.collectionName}")
                                     .document(ranking)
                             }
 
@@ -91,31 +91,6 @@ class ElasticsearchService(
         }
     }
 
-
-//
-//
-//    fun updateRanking(type: AGGREGATIONS_TYPE, limit: Int = 10):  MutableMap<AGGREGATIONS_TYPE, List<CollectionRanking>> {
-//        val startTime = toInstant(type)
-//        val formattedStartTime = DateTimeFormatter.ISO_INSTANT.format(startTime)
-//
-//        val rangeQuery = RangeQuery.of { r ->
-//            r.date { d ->
-//                d.field("ledgerTime")
-//                    .gte(formattedStartTime)
-//            }
-//        }
-//
-//        val searchResponse = client.search({ search ->
-//            search.index("nfts")
-//                .size(limit)
-//                .query { q -> q.range(rangeQuery) }
-//        }, Document::class.java)
-//
-//        val documents = searchResponse.hits().hits().mapNotNull { it.source() }
-//        val rankings = groupAndAggregateResults(documents,type,limit)
-//        return mutableMapOf(type to rankings)
-//
-//    }
 
     private fun groupAndAggregateResults(
         documents: List<Document>,

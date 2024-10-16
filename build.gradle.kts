@@ -32,7 +32,10 @@ dependencies {
     implementation("org.postgresql:postgresql:42.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
     implementation("org.springframework.cloud:spring-cloud-starter-config")
+
+    implementation("io.projectreactor.kafka:reactor-kafka:1.3.21")
     implementation("org.springframework.kafka:spring-kafka")
+
     implementation("org.springframework.boot:spring-boot-starter-batch")
     implementation("co.elastic.clients:elasticsearch-java:8.15.2")
     implementation("org.springframework.data:spring-data-elasticsearch")
