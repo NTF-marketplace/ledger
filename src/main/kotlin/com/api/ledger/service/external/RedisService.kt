@@ -1,6 +1,5 @@
 package com.api.ledger.service.external
 
-import com.api.ledger.service.dto.ElasticSearchUpdateData
 import com.api.ledger.service.dto.NftMetadataResponse
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.data.redis.core.ReactiveRedisTemplate
@@ -15,23 +14,6 @@ class RedisService(
     private val objectMapper: ObjectMapper,
     private val nftApiService: NftApiService,
 ) {
-
-    fun transformData(nftId: Long): Mono<ElasticSearchUpdateData> {
-        return reactiveRedisTemplate.opsForValue().get("NFT:$nftId")
-            .map { data ->
-                val nftMetadata = objectMapper.convertValue(data, NftMetadataResponse::class.java)
-                ElasticSearchUpdateData(
-                    id = nftMetadata.id,
-                    chainType = nftMetadata.chainType,
-                    lastPrice = nftMetadata.lastPrice,
-                    collectionName = nftMetadata.collectionName,
-                    collectionLogo = nftMetadata.collectionLogo,
-                    ledgerTime = null,
-                    ledgerPrice = null,
-                )
-            }
-    }
-
     fun getNft(nftId: Long): Mono<NftMetadataResponse> {
         return reactiveRedisTemplate.opsForValue().get("NFT:$nftId")
             .map { data ->

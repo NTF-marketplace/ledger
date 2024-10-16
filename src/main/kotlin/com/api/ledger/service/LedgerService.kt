@@ -13,7 +13,6 @@ import com.api.ledger.kafka.dto.LedgerRequest
 import com.api.ledger.kafka.dto.LedgerStatusRequest
 import com.api.ledger.service.dto.LedgerResponse
 import com.api.ledger.service.dto.TransferRequest
-import com.api.ledger.service.external.ElasticsearchService
 import com.api.ledger.service.external.WalletApiService
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
@@ -22,7 +21,6 @@ import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
 import java.math.BigDecimal
-import java.time.LocalDateTime
 
 @Service
 class LedgerService(

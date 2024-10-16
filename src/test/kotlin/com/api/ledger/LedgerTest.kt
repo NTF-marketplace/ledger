@@ -7,8 +7,6 @@ import com.api.ledger.kafka.KafkaProducer
 import com.api.ledger.kafka.dto.LedgerRequest
 import com.api.ledger.service.LedgerService
 import com.api.ledger.service.dto.LedgerResponse
-import com.api.ledger.service.dto.TransferRequest
-import com.api.ledger.service.external.ElasticsearchService
 import com.api.ledger.service.external.RedisService
 import com.api.ledger.service.external.WalletApiService
 import org.springframework.beans.factory.annotation.Autowired

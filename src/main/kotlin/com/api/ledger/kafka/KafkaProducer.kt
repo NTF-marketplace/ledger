@@ -3,7 +3,6 @@ package com.api.ledger.kafka
 import com.api.ledger.kafka.dto.LedgerStatusRequest
 import com.api.ledger.service.dto.LedgerResponse
 import org.slf4j.LoggerFactory
-import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import reactor.kafka.sender.KafkaSender

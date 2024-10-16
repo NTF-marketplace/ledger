@@ -17,11 +17,7 @@ spring:
   flyway:
     enabled: false
     locations: classpath:db/migration
-  sql:
-    init:
-      schema-locations: classpath:org/springframework/batch/core/schema-postgresql.sql
-#      - classpath:db/schema.sql
-      mode: never
+
   r2dbc:
     url: r2dbc:postgresql://localhost:5437/ledger
     username: ledger
@@ -54,9 +50,6 @@ spring:
   elasticsearch:
     rest:
       uris: http://localhost:9200
-  batch:
-    jdbc:
-      initialize-schema: always
 
 logging:
   level:
