@@ -14,7 +14,6 @@ class RedisService(
     private val objectMapper: ObjectMapper,
     private val nftApiService: NftApiService,
 ) {
-
     fun getNft(nftId: Long): Mono<NftMetadataResponse> {
         return reactiveRedisTemplate.opsForValue().get("NFT:$nftId")
             .map { data ->

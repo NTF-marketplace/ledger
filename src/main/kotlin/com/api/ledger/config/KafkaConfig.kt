@@ -19,6 +19,8 @@ import org.springframework.kafka.listener.CommonErrorHandler
 import org.springframework.kafka.listener.ContainerProperties
 import org.springframework.kafka.listener.MessageListenerContainer
 import org.springframework.kafka.support.serializer.JsonSerializer
+import reactor.kafka.sender.KafkaSender
+import reactor.kafka.sender.SenderOptions
 
 @Configuration
 @EnableKafka
@@ -37,8 +39,17 @@ class KafkaConfig {
         TopicBuilder
             .name("ledgerStatus-topic")
             .partitions(4)
-            .replicas(1)
+            .replicas(3)
             .build()
+
+    @Bean
+    fun ledgerResponseTopic(): NewTopic =
+        TopicBuilder
+            .name("ledgerResponse-topic")
+            .partitions(4)
+            .replicas(3)
+            .build()
+
 
     @Bean
     fun producerFactory(): ProducerFactory<String, Any> {
@@ -50,6 +61,18 @@ class KafkaConfig {
                 ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG to true,
             )
         return DefaultKafkaProducerFactory(configProps)
+    }
+
+    @Bean
+    fun kafkaSender(): KafkaSender<String, Any> {
+        val props = mapOf(
+            ProducerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
+            ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG to StringSerializer::class.java,
+            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG to JsonSerializer::class.java,
+            ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG to true
+        )
+        val senderOptions = SenderOptions.create<String, Any>(props)
+        return KafkaSender.create(senderOptions)
     }
 
     @Bean

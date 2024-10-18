@@ -1,15 +1,23 @@
 spring:
-  cloud:
-    config:
-      enabled: false
   application:
     name: ledger
+  config:
+    import: "optional:configserver:http://localhost:9000"
+  cloud:
+    config:
+      fail-fast: true
+      enabled: false
+
+
+#spring:
   datasource:
     url: jdbc:postgresql://localhost:5437/ledger
     username: ledger
     password: ledger
   flyway:
+    enabled: false
     locations: classpath:db/migration
+
   r2dbc:
     url: r2dbc:postgresql://localhost:5437/ledger
     username: ledger
@@ -39,7 +47,14 @@ spring:
           max-active: 8
           max-idle: 8
           min-idle: 0
+  elasticsearch:
+    rest:
+      uris: http://localhost:9200
 
+logging:
+  level:
+    org.springframework.batch: DEBUG
+    org.springframework.jdbc: DEBUG
 server:
   port: 8086
 wallet:

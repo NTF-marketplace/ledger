@@ -16,6 +16,7 @@ enum class ChainType {
     ETHEREUM_HOLESKY,
     ETHEREUM_SEPOLIA,
     POLYGON_AMOY,
+
 }
 
 enum class OrderStatusType: Serializable { PENDING,FAILED,CANCELD,COMPLETED }

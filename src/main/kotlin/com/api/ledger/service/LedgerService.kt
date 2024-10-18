@@ -5,9 +5,13 @@ import com.api.ledger.domain.LedgerFailLog
 import com.api.ledger.domain.repository.LedgerFailLogRepository
 import com.api.ledger.domain.repository.LedgerRepository
 import com.api.ledger.enums.OrderStatusType
+import com.api.ledger.exception.BadRequestException
+import com.api.ledger.exception.InternalServerException
+import com.api.ledger.exception.UnexpectedStatusCodeException
 import com.api.ledger.kafka.KafkaProducer
 import com.api.ledger.kafka.dto.LedgerRequest
 import com.api.ledger.kafka.dto.LedgerStatusRequest
+import com.api.ledger.service.dto.LedgerResponse
 import com.api.ledger.service.dto.TransferRequest
 import com.api.ledger.service.external.WalletApiService
 import org.slf4j.LoggerFactory
@@ -16,6 +20,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
+import java.math.BigDecimal
 
 @Service
 class LedgerService(
@@ -87,7 +92,6 @@ class LedgerService(
         }
     }
 
-
     private fun saveLedgerLog(request: LedgerRequest): Mono<Void> {
         logger.info("saveLedgerLog 함수 시작: $request")
         return ledgerRepository.save(
@@ -103,11 +107,20 @@ class LedgerService(
         )
             .flatMap {
                 logger.info("Ledger 저장 완료, 상태 전송 시작")
-                sendLedgerStatus(request.orderId, OrderStatusType.COMPLETED)
+                sendLedgerStatus(request.orderId, OrderStatusType.COMPLETED,it.ledgerPrice)
+                    .then(
+                        if (OrderStatusType.COMPLETED == OrderStatusType.COMPLETED) {
+                            sendLedger(request.nftId, it.ledgerPrice, it.createdAt ?: System.currentTimeMillis())
+                        } else {
+                            Mono.empty()
+                        }
+                    )
             }
-            .doOnSuccess { logger.info("Ledger 저장 및 상태 전송 완료") }
-            .doOnError { logger.error("Ledger 저장 또는 상태 전송 실패", it) }
+            .doOnSuccess { logger.info("Elasticsearch 업데이트 완료") }
+            .doOnError { logger.error("Ledger 저장, 상태 전송 또는 Elasticsearch 업데이트 실패", it) }
+            .then()
     }
+
     //여기로 오게끔
     private fun saveFailLog(request: LedgerRequest, message: String?): Mono<Void> {
         logger.info("saveFailLog 함수 시작: $request, 메시지: $message")
@@ -119,30 +132,25 @@ class LedgerService(
         )
             .flatMap {
                 logger.info("실패 로그 저장 완료, 상태 전송 시작")
-                sendLedgerStatus(request.orderId, OrderStatusType.FAILED)
+                sendLedgerStatus(request.orderId, OrderStatusType.FAILED,null)
             }
             .doOnSuccess { logger.info("실패 로그 저장 및 상태 전송 완료") }
             .doOnError { logger.error("실패 로그 저장 또는 상태 전송 실패", it) }
     }
 
-    private fun sendLedgerStatus(orderId: Long, status: OrderStatusType): Mono<Void> {
+    private fun sendLedger(nftId: Long,ledgerPrice: BigDecimal,ledgerTime:Long):Mono<Void> {
+        return kafkaProducer.sendLedgerResponse(LedgerResponse(nftId,ledgerPrice,ledgerTime))
+            .doOnSuccess { logger.info("Ledger 상태 전송 완료") }
+            .doOnError { logger.error("Ledger 상태 전송 실패", it) }
+
+    }
+
+    private fun sendLedgerStatus(orderId: Long, status: OrderStatusType,ledgerPrice: BigDecimal?): Mono<Void> {
         logger.info("sendLedgerStatus 함수 시작: orderId=$orderId, status=$status")
         return kafkaProducer.sendLedgerStatus(
-            LedgerStatusRequest(orderId, status)
+            LedgerStatusRequest(orderId, status, ledgerPrice)
         )
             .doOnSuccess { logger.info("Ledger 상태 전송 완료") }
             .doOnError { logger.error("Ledger 상태 전송 실패", it) }
     }
 }
-
-class BadRequestException(
-    message: String,
-) : RuntimeException(message)
-
-class InternalServerException(
-    message: String,
-) : RuntimeException(message)
-
-class UnexpectedStatusCodeException(
-    message: String,
-) : RuntimeException(message)
